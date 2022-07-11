@@ -8,13 +8,16 @@ contract Staker {
 
   ExampleExternalContract public exampleExternalContract;
 
+  // Mappings
   mapping(address => uint256) public balances;
   mapping(address => uint256) public depositTimestamps;
 
+  // Values
   uint256 public constant rewardRatePerSecond = 0.1 ether;
   uint256 public withdrawalDeadline = block.timestamp + 120 seconds;
   uint256 public claimDeadline = block.timestamp + 240 seconds;
   uint256 public currentBlock = 0;
+  uint256 public constant percentageRate =  3;
 
   // Events
   event Stake(address indexed sender, uint256 amount);
@@ -34,7 +37,7 @@ contract Staker {
     }
     _;
   }
-
+ 
   /*
   Checks if the claim period has ended or not
   */
@@ -58,7 +61,7 @@ contract Staker {
   }
 
   constructor(address exampleExternalContractAddress){
-      exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);
+    exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);
   }
 
   // Stake function for a user to stake ETH in our contract
@@ -75,15 +78,24 @@ contract Staker {
   function withdraw() public withdrawalDeadlineReached(true) claimDeadlineReached(false) notCompleted{
     require(balances[msg.sender] > 0, "You have no balance to withdraw!");
     uint256 individualBalance = balances[msg.sender];
-    uint256 indBalanceRewards = individualBalance + ((block.timestamp-depositTimestamps[msg.sender])*rewardRatePerSecond);
-    balances[msg.sender] = 0;
+    uint256 period = block.timestamp-depositTimestamps[msg.sender];
+    uint256 percentage = calculatePercentage(individualBalance, period);
+    uint256 indBalanceRewards = individualBalance + percentage;
 
+    if (indBalanceRewards > address(this).balance) {
+      indBalanceRewards = address(this).balance;
+    }
+    balances[msg.sender] = 0;
+    
     // Transfer all ETH via call! (not transfer) cc: https://solidity-by-example.org/sending-ether
     (bool sent, bytes memory data) = msg.sender.call{value: indBalanceRewards}("");
     require(sent, "RIP; withdrawal failed :( ");
   }
 
-
+  function calculatePercentage(uint256 principal, uint256 period) private view returns(uint256) {
+     return principal * (100 + percentageRate) ** (period/60); 
+  }
+  
   /*
   Allows any user to repatriate "unproductive" funds that are left in the staking contract
   past the defined withdrawal period
@@ -101,7 +113,7 @@ contract Staker {
       return (0);
     } else {
       return (withdrawalDeadline - block.timestamp);
-    }
+    } 
   }
 
   /*
@@ -114,7 +126,7 @@ contract Staker {
       return (claimDeadline - block.timestamp);
     }
   }
-
+  
   /*
   Time to "kill-time" on our local testnet
   */
