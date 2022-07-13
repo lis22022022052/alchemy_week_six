@@ -591,7 +591,7 @@ function App(props) {
               <Button
                 type={balanceStaked ? "success" : "primary"}
                 onClick={() => {
-                  tx(writeContracts.Staker.stake({ value: stakeValue }));
+                  tx(writeContracts.Staker.stake({ value: ethers.utils.parseEther(stakeValue) }));
                 }}
               >
                 🥩 {`Stake ${stakeValue} ether!`}
